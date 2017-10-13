@@ -39,7 +39,7 @@
   (destructuring-bind (command goal-left goal-right)
       (reference action-designator)
     (ecase command
-      (move-arm
+      (cram-common-designators:move-tcp
        (handler-case
            (progn
              (unless (listp goal-left)
@@ -48,20 +48,20 @@
                (setf goal-right (list goal-right)))
              (let ((max-length (max (length goal-left) (length goal-right))))
                (mapc (lambda (single-pose-left single-pose-right)
-                       (pr2-ll:visualize-marker (list single-pose-left single-pose-right)
-                                                :r-g-b-list '(1 0 1))
+                       ;; (pr2-ll:visualize-marker (list single-pose-left single-pose-right)
+                       ;;                          :r-g-b-list '(1 0 1))
                        (pr2-ll:call-giskard-cartesian-action :left single-pose-left
                                                              :right single-pose-right))
                      (fill-in-with-nils goal-left max-length)
                      (fill-in-with-nils goal-right max-length))))
-         (cram-plan-failures:manipulation-failed ()
-           (cpl:fail 'cram-plan-failures:manipulation-failed :action action-designator))))
-      (move-joints
+         (common-fail:manipulation-low-level-failure ()
+           (cpl:fail 'common-fail:manipulation-low-level-failure :action action-designator))))
+      (cram-common-designators:move-joints
        (handler-case
            (pr2-ll:call-giskard-joint-action :left goal-left
                                              :right goal-right)
-         (cram-plan-failures:manipulation-failed ()
-           (cpl:fail 'cram-plan-failures:manipulation-failed :action action-designator)))))))
+         (common-fail:manipulation-low-level-failure ()
+           (cpl:fail 'common-fail:manipulation-low-level-failure :action action-designator)))))))
 
 ;;; Examples:
 ;;

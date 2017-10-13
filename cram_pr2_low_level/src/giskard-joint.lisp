@@ -85,7 +85,8 @@
                                           goal-configuration-left goal-configuration-right
                                           convergence-delta-joint)
   (when (eql status :timeout)
-    (cpl:fail 'actionlib-action-timed-out :description "Giskard action timed out"))
+    (cpl:fail 'common-fail:actionlib-action-timed-out
+              :description "Giskard action timed out"))
   (when (eql status :preempted)
     (roslisp:ros-warn (low-level giskard) "Giskard action preempted.")
     (return-from ensure-giskard-joint-goal-reached))
@@ -94,7 +95,7 @@
              (unless (values-converged (normalize-joint-angles configuration)
                                        (normalize-joint-angles goal-configuration)
                                        convergence-delta-joint)
-               (cpl:fail 'pr2-low-level-failure
+               (cpl:fail 'common-fail:manipulation-goal-not-reached
                          :description (format nil "Giskard did not converge to goal:
 ~a (~a) should have been at ~a with delta-joint of ~a."
                                               arm

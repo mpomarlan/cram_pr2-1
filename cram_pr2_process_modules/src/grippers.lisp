@@ -33,11 +33,11 @@
   (destructuring-bind (command action-type which-gripper &optional max-effort)
       (reference action-designator)
     (ecase command
-      (gripper-action
+      (cram-common-designators:move-gripper-joint
        (handler-case
            (pr2-ll:call-gripper-action which-gripper action-type :max-effort max-effort)
-         (cram-plan-failures:gripping-failed ()
-           (cpl:fail 'cram-plan-failures:gripping-failed :action action-designator)))))))
+         (common-fail:gripping-failed ()
+           (cpl:fail 'common-fail:gripping-failed :action action-designator)))))))
 
 ;;; Example:
 ;; (cram-process-modules:with-process-modules-running

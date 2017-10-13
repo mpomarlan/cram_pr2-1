@@ -142,16 +142,10 @@
    (cl-transforms:make-3d-vector 0.65335d0 0.076d0 0.758d0)
    (cl-transforms:make-identity-rotation)))
 
-(defmacro with-pr2-process-modules (&body body)
-  `(cram-process-modules:with-process-modules-running
-       (pr2-pms::pr2-perception-pm pr2-pms::pr2-base-pm pr2-pms::pr2-arms-pm
-                                   pr2-pms::pr2-grippers-pm pr2-pms::pr2-ptu-pm)
-     (cpl:top-level
-       ,@body)))
 
 (defun move-pr2-arms-out-of-sight (&key (arm '(:left :right)) flipped)
   (cpl:with-failure-handling
-      ((pr2-ll:pr2-low-level-failure (e)
+      ((common-fail:low-level-failure (e)
          (declare (ignore e))
          (return)))
     (unless (listp arm)
@@ -165,11 +159,11 @@
         (setf ?right-configuration-to-go (if flipped
                                              *pr2-right-arm-out-of-sight-flipped-joint-positions*
                                              *pr2-right-arm-out-of-sight-joint-positions*)))
-      (cram-plan-library:perform
-       (desig:an action
-                 (to move-joints-motion)
-                 (left ?left-configuration-to-go)
-                 (right ?right-configuration-to-go))))))
+      (exe:perform
+       (desig:a motion
+                (type moving-joints)
+                (left-configuration ?left-configuration-to-go)
+                (right-configuration ?right-configuration-to-go))))))
 
 (defun overwrite-transformer ()
   (setf cram-tf:*transformer* (make-instance 'cl-tf2:buffer-client)))
@@ -249,34 +243,16 @@
   (cadar (desig:desig-prop-value object-designator :pose)))
 
 (defun translate-pose (pose &key (x-offset 0.0) (y-offset 0.0) (z-offset 0.0))
-  (cl-transforms-stamped:copy-pose-stamped
-   pose
-   :origin (let ((pose-origin (cl-transforms:origin pose)))
-             (cl-transforms:copy-3d-vector
-              pose-origin
-              :x (let ((x-pose-origin (cl-transforms:x pose-origin)))
-                   (+ x-pose-origin x-offset))
-              :y (let ((y-pose-origin (cl-transforms:y pose-origin)))
-                   (+ y-pose-origin y-offset))
-              :z (let ((z-pose-origin (cl-transforms:z pose-origin)))
-                   (+ z-pose-origin z-offset))))))
+  (cram-tf:translate-pose pose :x-offset x-offset :y-offset y-offset :z-offset z-offset))
 
 (defun rotate-once-pose (pose angle axis)
-  (cl-transforms-stamped:copy-pose-stamped
-   pose
-   :orientation (let ((pose-orientation (cl-transforms:orientation pose)))
-                  (cl-transforms:q*
-                   (cl-transforms:axis-angle->quaternion
-                    (case axis
-                      (:x (cl-transforms:make-3d-vector 1 0 0))
-                      (:y (cl-transforms:make-3d-vector 0 1 0))
-                      (:z (cl-transforms:make-3d-vector 0 0 1))
-                      (t (error "in ROTATE-ONCE-POSE forgot to specify axis properly: ~a" axis)))
-                    angle)
-                   pose-orientation))))
+  (cram-tf:rotate-pose pose axis angle))
 
 (defun get-object-type-grasp-pose (object-type object-pose arm grasp)
-  (let ((object-pose (pr2-ll:ensure-pose-in-frame object-pose cram-tf:*robot-base-frame*)))
+  (let ((object-pose (cram-tf:ensure-pose-in-frame
+                      object-pose
+                      cram-tf:*robot-base-frame*
+                      :use-zero-time t)))
    (case object-type
      ((:fork :knife :cutlery)
       (if (eq grasp :top)
@@ -342,16 +318,25 @@
    arm grasp))
 
 (defun get-object-type-lift-pose (object-type object-pose arm grasp)
-  (let ((object-pose (pr2-ll:ensure-pose-in-frame object-pose cram-tf:*robot-base-frame*)))
+  (let ((object-pose (cram-tf:ensure-pose-in-frame
+                      object-pose
+                      cram-tf:*robot-base-frame*
+                      :use-zero-time t)))
    (translate-pose (get-object-type-grasp-pose object-type object-pose arm grasp)
                    :z-offset *lift-z-offset*)))
 
 (defun get-object-grasp-lift-pose (grasp-pose)
-  (let ((grasp-pose (pr2-ll:ensure-pose-in-frame grasp-pose cram-tf:*robot-base-frame*)))
+  (let ((grasp-pose (cram-tf:ensure-pose-in-frame
+                     grasp-pose
+                     cram-tf:*robot-base-frame*
+                     :use-zero-time t)))
    (translate-pose grasp-pose :z-offset *lift-z-offset*)))
 
 (defun get-object-type-pregrasp-pose (object-type grasp-pose arm grasp)
-  (let ((grasp-pose (pr2-ll:ensure-pose-in-frame grasp-pose cram-tf:*robot-base-frame*)))
+  (let ((grasp-pose (cram-tf:ensure-pose-in-frame
+                     grasp-pose
+                     cram-tf:*robot-base-frame*
+                     :use-zero-time t)))
    (case object-type
      ((:fork :knife :cutlery)
       (if (eq grasp :top)
@@ -390,7 +375,10 @@
         (t (error "grasp can only be :side or :front")))))))
 
 (defun get-object-type-2nd-pregrasp-pose (object-type grasp-pose arm grasp)
-  (let ((grasp-pose (pr2-ll:ensure-pose-in-frame grasp-pose cram-tf:*robot-base-frame*)))
+  (let ((grasp-pose (cram-tf:ensure-pose-in-frame
+                     grasp-pose
+                     cram-tf:*robot-base-frame*
+                     :use-zero-time t)))
    (case object-type
      ((:fork :knife :cutlery)
       ;; (if (eq grasp :top)
@@ -437,9 +425,10 @@
     (let ((*kitchen-meal-table-z* (+ *kitchen-meal-table-z*
                                      z-offset
                                      (- *cup-center-z*))))
-      (let* ((object-pose (pr2-ll:ensure-pose-in-frame
+      (let* ((object-pose (cram-tf:ensure-pose-in-frame
                            (get-object-pose object-designator)
-                           cram-tf:*robot-base-frame*))
+                           cram-tf:*robot-base-frame*
+                           :use-zero-time t))
              (grasp-pose (get-object-type-grasp-pose object-type object-pose arm grasp)))
         (print grasp-pose)
         (translate-pose grasp-pose
@@ -458,11 +447,12 @@
                                      *pour-z-offset*))))))
 
 (defun get-tilted-pose (initial-poses angle arm grasp)
-  (let ((initial-pose (pr2-ll:ensure-pose-in-frame
+  (let ((initial-pose (cram-tf:ensure-pose-in-frame
                        (if (listp initial-poses)
                           (car (last initial-poses))
                           initial-poses)
-                       cram-tf:*robot-base-frame*)))
+                       cram-tf:*robot-base-frame*
+                       :use-zero-time t)))
     (case grasp
       (:front (rotate-once-pose initial-pose angle :y))
       (:side (case arm

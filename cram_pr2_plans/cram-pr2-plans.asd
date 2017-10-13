@@ -33,24 +33,33 @@
 
   :depends-on (cl-transforms
                cl-transforms-stamped
-               cram-tf
-               cram-language
-               cram-pr2-low-level
-               cram-pr2-process-modules
-               cram-process-modules
-               cram-designators
-               cram-plan-library
-               cram-plan-occasions-events
-               cram-occasions-events
-               cram-prolog
                cl-tf2
+               cram-tf
+
+               cram-language
+               cram-prolog
+               cram-designators
+               cram-process-modules
                cram-math
-               cram-beliefstate
+               cram-occasions-events
+               cram-executive
+               cram-utilities ; for cut:var-value of prolog stuff
+
+               cram-plan-occasions-events
+               ;; cram-bullet-reasoning-belief-state ; for event handling ; using own stuff for now
+
                giskard_msgs-msg
                giskard_msgs-srv
+
+               cram-common-failures
+               ;; cram-pr2-process-modules ; only needed when running on real robot
+
                cram-semantic-map-costmap
                cram-robot-pose-gaussian-costmap
-               pr2-reachability-costmap)
+               pr2-reachability-costmap
+
+               ;; cram-beliefstate ; got rid of logging hooks, going to use other logging
+               )
 
   :components
   ((:module "src"

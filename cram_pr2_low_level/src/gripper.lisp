@@ -115,17 +115,17 @@
                                     goal-position
                                     convergence-delta)
   (when (eql status :timeout)
-    (cpl:fail 'actionlib-action-timed-out :description "Gripping action timed out"))
+    (cpl:fail 'common-fail:actionlib-action-timed-out :description "Gripping action timed out"))
   (let* ((current-position
            (pr2_controllers_msgs-msg:position result))
          (converged-p
            (values-converged current-position goal-position convergence-delta)))
     (if (eql original-goal-position :grip) ; gripper should not completely close
         (when converged-p
-          (cpl:fail 'pr2-low-level-failure
+          (cpl:fail 'common-fail:gripper-closed-completely
                     :description "Tried to grasp but ended up closing the gripper."))
         (unless converged-p
-          (cpl:fail 'pr2-low-level-failure
+          (cpl:fail 'common-fail:gripping-failed
                     :description (format nil "Gripper action did not converge to the goal:
 goal: ~a, current: ~a, delta: ~a." goal-position current-position convergence-delta))))))
 

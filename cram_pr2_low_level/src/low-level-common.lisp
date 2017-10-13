@@ -29,18 +29,6 @@
 
 (in-package :pr2-ll)
 
-(define-condition pr2-low-level-failure (cpl:simple-plan-failure)
-  ((description :initarg :description
-                :initform "Actionlib action didn't end with SUCCEEDED"
-                :reader error-description))
-  (:documentation "Actionlib action didn't end with SUCCEEDED")
-  (:report (lambda (condition stream)
-             (format stream (error-description condition)))))
-
-(define-condition actionlib-action-timed-out (pr2-low-level-failure) ()
-  (:documentation "Actionlib action timeout was reached"))
-
-
 (defun values-converged (values goal-values deltas)
   (flet ((value-converged (value goal-value delta)
            (<= (abs (- value goal-value)) delta)))
@@ -62,45 +50,6 @@
                   deltas (list deltas))))
     ;; actually compare
     (every #'value-converged values goal-values deltas)))
-
-(defun tf-frame-converged (goal-frame goal-pose-stamped delta-xy delta-theta)
-  (let* ((pose-in-frame
-           (cl-transforms-stamped:transform-pose-stamped
-            *transformer*
-            :pose goal-pose-stamped
-            :target-frame goal-frame
-            :timeout *tf-default-timeout*
-            :use-current-ros-time t))
-         (goal-dist (max (abs (cl-transforms:x (cl-transforms:origin pose-in-frame)))
-                         (abs (cl-transforms:y (cl-transforms:origin pose-in-frame)))))
-         (goal-angle (cl-transforms:normalize-angle
-                      (cl-transforms:get-yaw
-                       (cl-transforms:orientation pose-in-frame)))))
-    (and (<= goal-dist delta-xy)
-         (<= (abs goal-angle) delta-theta))))
-
-
-(defun ensure-pose-in-frame (pose frame)
-  (declare (type (or null cl-transforms:pose cl-transforms-stamped:pose-stamped)))
-  (when pose
-    (cl-transforms-stamped:transform-pose-stamped
-     cram-tf:*transformer*
-     :pose (cl-transforms-stamped:ensure-pose-stamped
-            pose frame 0.0)
-     :target-frame frame
-     :timeout cram-tf:*tf-default-timeout*
-     :use-current-ros-time t)))
-
-(defun ensure-point-in-frame (point frame)
-  (declare (type (or cl-transforms:point cl-transforms-stamped:point-stamped)))
-  (cl-transforms-stamped:transform-point-stamped
-   cram-tf:*transformer*
-   :point (if (typep point 'cl-transforms-stamped:point-stamped)
-              point
-              (cl-transforms-stamped:make-point-stamped
-               frame 0.0 point))
-   :target-frame frame
-   :timeout cram-tf:*tf-default-timeout*))
 
 
 (defun visualize-marker (pose/s &key
@@ -140,13 +89,13 @@
                                                         (y orientation pose) (cl-transforms:y rot)
                                                         (z orientation pose) (cl-transforms:z rot)
                                                         (w orientation pose) (cl-transforms:w rot)
-                                                        (x scale) 0.2
-                                                        (y scale) 0.1
-                                                        (z scale) 0.02
+                                                        (x scale) 0.05
+                                                        (y scale) 0.03
+                                                        (z scale) 0.01
                                                         (r color) (first r-g-b-list)
                                                         (g color) (second r-g-b-list)
                                                         (b color) (third r-g-b-list)
-                                                        (a color) 1.0)))
+                                                        (a color) 0.7)))
                ;; (roslisp:ros-warn (ll visualize-marker) "asked to visualize a null pose")
                )))
     (if (listp pose/s)

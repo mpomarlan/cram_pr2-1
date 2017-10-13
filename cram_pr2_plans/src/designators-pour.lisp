@@ -45,19 +45,19 @@
   (let* (;; (?minus-angle (- ?angle))
          (phases (list
                   (an action
-                      (to approach-action)
+                      (to approach)
                       (left ?left-pour-poses)
                       (right ?right-pour-poses))
                   (an action
-                      (to tilt-to-action)
+                      (to tilt-to)
                       (left ?left-tilt-pose)
                       (right ?right-tilt-pose))
                   (an action
-                      (to tilt-to-action)
+                      (to tilt-to)
                       (left ?left-pour-poses)
                       (right ?right-pour-poses))
                   (an action
-                      (to retract-action)
+                      (to retract)
                       (left ?left-retract-poses)
                       (right ?right-retract-poses)))))
     (copy-designator action-designator :new-description `((:phases ,phases)))))
@@ -71,54 +71,68 @@
     (:right (setf ?left-retract-poses nil)))
   ;; (setf ?left-grasp-poses (reverse ?left-grasp-poses))
   ;; (setf ?right-grasp-poses (reverse ?right-grasp-poses))
-  (let ((source-pose (cl-tf:transform-pose-stamped
-                      cram-tf:*transformer*
-                      :target-frame cram-tf:*robot-base-frame*
-                      :pose (cl-tf:make-pose-stamped
-                             pr2-ll::*right-tool-frame*
-                             0.0
-                             (cl-tf:make-identity-vector)
-                             (cl-tf:make-identity-rotation))
-                      :timeout cram-tf:*tf-default-timeout*))
-        (destination-pose (cl-tf:transform-pose-stamped
-                           cram-tf:*transformer*
-                           :target-frame cram-tf:*robot-base-frame*
-                           :pose (cl-tf:make-pose-stamped
-                                  pr2-ll::*left-tool-frame*
-                                  0.0
-                                  (cl-tf:make-identity-vector)
-                                  (cl-tf:make-identity-rotation))
-                           :timeout cram-tf:*tf-default-timeout*)))
+  (cut:with-vars-bound (?left-tool-frame ?right-tool-frame)
+      (cut:lazy-car
+       (prolog:prolog
+        `(and (cram-robot-interfaces:robot ?robot)
+              (cram-robot-interfaces:robot-tool-frame ?robot :left ?left-tool-frame)
+              (cram-robot-interfaces:robot-tool-frame ?robot :right ?right-tool-frame))))
+    (if (cut:is-var ?left-tool-frame)
+        (roslisp:ros-error (low-level giskard-init)
+                           "?left-tool-frame is unknown. ~
+                           Did you load a robot description package?")
+        (if (cut:is-var ?right-tool-frame)
+            (roslisp:ros-error (low-level giskard-init)
+                               "?right-tool-frame is unknown. ~
+                                Did you load a robot description package?")
+            (let ((source-pose (cl-tf:transform-pose-stamped
+                                cram-tf:*transformer*
+                                :target-frame cram-tf:*robot-base-frame*
+                                :pose (cl-tf:make-pose-stamped
+                                       ?right-tool-frame
+                                       0.0
+                                       (cl-tf:make-identity-vector)
+                                       (cl-tf:make-identity-rotation))
+                                :timeout cram-tf:*tf-default-timeout*))
+                  (destination-pose (cl-tf:transform-pose-stamped
+                                     cram-tf:*transformer*
+                                     :target-frame cram-tf:*robot-base-frame*
+                                     :pose (cl-tf:make-pose-stamped
+                                            ?left-tool-frame
+                                            0.0
+                                            (cl-tf:make-identity-vector)
+                                            (cl-tf:make-identity-rotation))
+                                     :timeout cram-tf:*tf-default-timeout*)))
 
-    (let* ((pouring-constraints (call-learned-constraints-service
-                                 source-type source-pose
-                                 destination-type destination-pose
-                                 pour-volume liquid-in-source))
-           (?approach-constraints (cadr (assoc :approach pouring-constraints)))
-           (?tilt-down-constraints (cadr (assoc :tilt-down pouring-constraints)))
-           (?tilt-back-constraints (cadr (assoc :tilt-back pouring-constraints)))
-           (phases (list
-                    (an action
-                        (to approach)
-                        (constraints ?approach-constraints))
-                    (an action
-                        (to tilt-down)
-                        (constraints ?tilt-down-constraints))
-                    (an action
-                        (to wait)
-                        (duration 3.0))
-                    (an action
-                        (to tilt-back)
-                        (constraints ?tilt-back-constraints))
-                    (an action
-                        (to wait)
-                        (duration 3.0))
-                    ;; (an action
-                    ;;     (to retract-action)
-                    ;;     (left ?left-retract-poses)
-                    ;;     (right ?right-retract-poses))
-                    )))
-      (copy-designator action-designator :new-description `((:phases ,phases))))))
+              (let* ((pouring-constraints (call-learned-constraints-service
+                                           source-type source-pose
+                                           destination-type destination-pose
+                                           pour-volume liquid-in-source))
+                     (?approach-constraints (cadr (assoc :approach pouring-constraints)))
+                     (?tilt-down-constraints (cadr (assoc :tilt-down pouring-constraints)))
+                     (?tilt-back-constraints (cadr (assoc :tilt-back pouring-constraints)))
+                     (phases (list
+                              (an action
+                                  (to approach)
+                                  (constraints ?approach-constraints))
+                              (an action
+                                  (to tilt-down)
+                                  (constraints ?tilt-down-constraints))
+                              (an action
+                                  (to wait)
+                                  (duration 3.0))
+                              (an action
+                                  (to tilt-back)
+                                  (constraints ?tilt-back-constraints))
+                              (an action
+                                  (to wait)
+                                  (duration 3.0))
+                              ;; (an action
+                              ;;     (to retract)
+                              ;;     (left ?left-retract-poses)
+                              ;;     (right ?right-retract-poses))
+                              )))
+                (copy-designator action-designator :new-description `((:phases ,phases)))))))))
 
 ;; (declaim (inline car-last))
 (defun car-last (some-list)
@@ -126,9 +140,9 @@
       (car (last some-list))
       some-list))
 
-(def-fact-group pr2-pouring-plans (action-desig)
+(def-fact-group pr2-pouring-plans (action-grounding)
 
-  (<- (action-desig ?action-designator (perform-phases-in-sequence ?updated-action-designator))
+  (<- (action-grounding ?action-designator (perform-phases-in-sequence ?updated-action-designator))
     (or (desig-prop ?action-designator (:to :pour-activity)) ;; cartesian one-armed
         (desig-prop ?action-designator (:type :pouring-activity)))
     (desig-prop ?action-designator (:arm ?arm))
@@ -174,7 +188,7 @@
               ?updated-action-designator))
 
 
-  (<- (action-desig ?action-designator (pour-activity ?updated-action-designator))
+  (<- (action-grounding ?action-designator (pour-activity ?updated-action-designator))
     (or (desig-prop ?action-designator (:to :pour-activity)) ;; yaml two-arm
         (desig-prop ?action-designator (:type :pouring-activity)))
     (desig-prop ?action-designator (:arm ?arm))
@@ -225,34 +239,34 @@
               ?updated-action-designator))
 
 
-  (<- (action-desig ?action-designator (move-arms-in-sequence ?left-poses ?right-poses))
-    (desig-prop ?action-designator (:to :approach-action))
+  (<- (action-grounding ?action-designator (move-arms-in-sequence ?left-poses ?right-poses))
+    (desig-prop ?action-designator (:to :approach))
     (once (or (desig-prop ?action-designator (:left ?left-poses))
               (equal ?left-poses nil)))
     (once (or (desig-prop ?action-designator (:right ?right-poses))
               (equal ?right-poses nil))))
 
-  ;; (<- (action-desig ?action-designator (tilt ?left-goal-pose ?right-goal-pose))
+  ;; (<- (action-grounding ?action-designator (tilt ?left-goal-pose ?right-goal-pose))
   ;;   (desig-prop ?action-designator (:to :my-tilt-angle))
   ;;   (desig-prop ?action-designator (:left ?left-initial-poses))
   ;;   (desig-prop ?action-designator (:right ?right-initial-poses))
   ;;   (desig-prop ?action-designator (:angle ?angle))
   ;;   (lisp-fun get-tilted-pose ?left-initial-poses ?angle ...))
 
-  (<- (action-desig ?action-designator (move-arms-in-sequence ?left-last-pose ?right-last-pose))
-    (desig-prop ?action-designator (:to :tilt-to-action))
+  (<- (action-grounding ?action-designator (move-arms-in-sequence ?left-last-pose ?right-last-pose))
+    (desig-prop ?action-designator (:to :tilt-to))
     (desig-prop ?action-designator (:left ?left-poses))
     (desig-prop ?action-designator (:right ?right-poses))
     (lisp-fun car-last ?left-poses ?left-last-pose)
     (lisp-fun car-last ?right-poses ?right-last-pose))
 
-  (<- (action-desig ?action-designator (giskard-yaml ?phase ?constraints))
+  (<- (action-grounding ?action-designator (giskard-yaml ?phase ?constraints))
     (or (desig-prop ?action-designator (:to :approach))
         (desig-prop ?action-designator (:to :tilt-down))
         (desig-prop ?action-designator (:to :tilt-back)))
     (desig-prop ?action-designator (:to ?phase))
     (desig-prop ?action-designator (:constraints ?constraints)))
 
-  (<- (action-desig ?action-designator (wait ?duration))
+  (<- (action-grounding ?action-designator (wait ?duration))
     (desig-prop ?action-designator (:to :wait))
     (desig-prop ?action-designator (:duration ?duration))))

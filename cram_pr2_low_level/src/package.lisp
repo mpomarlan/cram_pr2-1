@@ -49,10 +49,5 @@
    #:get-arm-joint-states
    #:normalize-joint-angles
    ;; low-level-common
-   #:pr2-low-level-failure
-   #:actionlib-action-timed-out
    #:values-converged
-   #:tf-frame-converged
-   #:ensure-pose-in-frame
-   #:ensure-point-in-frame
    #:visualize-marker))
