@@ -29,32 +29,59 @@
 
 (in-package :pr2-pms)
 
+(defun fill-in-with-nils (some-list desired-length)
+  (let ((current-length (length some-list)))
+    (if (> desired-length current-length)
+        (append some-list (make-list (- desired-length current-length)))
+        some-list)))
+
 (def-process-module pr2-arms-pm (action-designator)
-  (destructuring-bind (command goal-pose which-arm)
+  (destructuring-bind (command goal-left goal-right)
       (reference action-designator)
     (ecase command
       (move-arm
        (handler-case
-           (case which-arm
-             (:both
-              (unless (and (listp goal-pose)
-                           (= (length goal-pose) 2))
-                (error "when moving both arms goal pose should be a list of 2 elements."))
-              (pr2-ll:call-giskard-action (first goal-pose) (second goal-pose)))
-             (:left (pr2-ll:call-giskard-action goal-pose nil))
-             (:right (pr2-ll:call-giskard-action nil goal-pose))
-             (t (error "arm can only be :left, :right or :both")
-                ;; (error 'designator-error
-                ;;        :format-control "Designator `~a' does not reference an object."
-                ;;        :format-arguments (list desig)
-                ;;        :designator desig)
-              ))
+           (progn
+             (unless (listp goal-left)
+               (setf goal-left (list goal-left)))
+             (unless (listp goal-right)
+               (setf goal-right (list goal-right)))
+             (let ((max-length (max (length goal-left) (length goal-right))))
+               (mapc (lambda (single-pose-left single-pose-right)
+                       (pr2-ll:visualize-marker (list single-pose-left single-pose-right)
+                                                :r-g-b-list '(1 0 1))
+                       (pr2-ll:call-giskard-cartesian-action :left single-pose-left
+                                                             :right single-pose-right))
+                     (fill-in-with-nils goal-left max-length)
+                     (fill-in-with-nils goal-right max-length))))
+         (cram-plan-failures:manipulation-failed ()
+           (cpl:fail 'cram-plan-failures:manipulation-failed :action action-designator))))
+      (move-joints
+       (handler-case
+           (pr2-ll:call-giskard-joint-action :left goal-left
+                                             :right goal-right)
          (cram-plan-failures:manipulation-failed ()
            (cpl:fail 'cram-plan-failures:manipulation-failed :action action-designator)))))))
 
-;;; Example:
+;;; Examples:
+;;
 ;; (cram-process-modules:with-process-modules-running
 ;;     (pr2-pms::pr2-arms-pm)
 ;;   (cpl:top-level
 ;;     (cpm:pm-execute-matching
-;;      (desig:an action (to move) (right arm) (to ((1 0 1) (0 0 0 1))))))
+;;      (desig:an action (to move-arm) (right ((0.5 0.5 1.5) (0 0 0 1)))))))
+;;
+;; (cram-process-modules:with-process-modules-running
+;;     (pr2-pms::pr2-arms-pm)
+;;   (cpl:top-level
+;;     (cpm:pm-execute-matching
+;;      (desig:an action
+;;                (to move-arm)
+;;                (right ((0.5 -0.5 1.5) (0 0 0 1)))
+;;                (left ((0.5 0.5 1.5) (0 0 0 1)))))))
+;;
+;; (cram-process-modules:with-process-modules-running
+;;     (pr2-pms::pr2-arms-pm)
+;;   (cpl:top-level
+;;     (cpm:pm-execute-matching
+;;      (desig:an action (to move-arm) (right (((1 1 1) (0 0 0 1)) nil ((1 1 1) (0 0 0 1))))))))

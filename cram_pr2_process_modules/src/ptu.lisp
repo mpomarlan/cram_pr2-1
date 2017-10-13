@@ -30,20 +30,15 @@
 (in-package :pr2-pms)
 
 (def-process-module pr2-ptu-pm (action-designator)
-  (destructuring-bind (command pose) (reference action-designator)
+  (destructuring-bind (command goal-type goal) (reference action-designator)
     (ecase command
       (look-at
-       (let ((pose-stamped
-               (cl-transforms-stamped:ensure-pose-stamped
-                pose
-                cram-tf:*fixed-frame*
-                0.0)))
-         (handler-case
-             (pr2-ll::call-ptu-action
-              :frame (cl-transforms-stamped:frame-id pose-stamped)
-              :point (cl-transforms:origin pose-stamped))
-           (cram-plan-failures:look-at-failed ()
-             (cpl:fail 'cram-plan-failures:look-at-failed :action action-designator))))))))
+       (handler-case
+           (ecase goal-type
+             (:point (pr2-ll:call-ptu-action :point goal))
+             (:frame (pr2-ll:call-ptu-action :frame goal)))
+         (cram-plan-failures:look-at-failed ()
+           (cpl:fail 'cram-plan-failures:look-at-failed :action action-designator)))))))
 
 ;; Examples:
 ;;

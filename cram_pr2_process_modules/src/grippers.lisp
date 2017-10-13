@@ -35,7 +35,7 @@
     (ecase command
       (gripper-action
        (handler-case
-           (pr2-ll:call-gripper-action which-gripper action-type max-effort)
+           (pr2-ll:call-gripper-action which-gripper action-type :max-effort max-effort)
          (cram-plan-failures:gripping-failed ()
            (cpl:fail 'cram-plan-failures:gripping-failed :action action-designator)))))))
 
@@ -45,3 +45,12 @@
 ;;   (cpl:top-level
 ;;     (cpm:pm-execute-matching
 ;;      (desig:an action (to open) (right gripper)))))
+;;
+;; (cram-process-modules:with-process-modules-running
+;;     (pr2-pms::pr2-grippers-pm)
+;;   (cpl:top-level
+;;     (cpm:pm-execute-matching
+;;      (desig:an action
+;;                (to grip)
+;;                (effort 50)
+;;                (with right)))))

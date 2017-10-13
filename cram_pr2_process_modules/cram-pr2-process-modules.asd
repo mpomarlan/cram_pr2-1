@@ -35,8 +35,6 @@
                cram-prolog
                cram-designators
                cram-pr2-low-level
-               roslisp
-               cram-pr2-description
                cram-tf)
 
   :components
@@ -47,4 +45,5 @@
      (:file "grippers" :depends-on ("package"))
      (:file "ptu" :depends-on ("package"))
      (:file "base" :depends-on ("package"))
-     (:file "arms" :depends-on ("package"))))))
+     (:file "arms" :depends-on ("package"))
+     (:file "perception" :depends-on ("package"))))))

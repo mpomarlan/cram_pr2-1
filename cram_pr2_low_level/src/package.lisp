@@ -32,7 +32,27 @@
 (defpackage cram-pr2-low-level
   (:nicknames #:pr2-ll)
   (:use #:common-lisp #:cram-tf)
-  (:export #:call-gripper-action
-           #:call-ptu-action
-           #:call-nav-pcontroller-action
-           #:call-giskard-action))
+  (:export
+   ;; actionlib actions
+   #:call-giskard-cartesian-action
+   #:call-giskard-joint-action
+   #:call-gripper-action
+   #:call-joint-trajectory-action
+   #:call-joint-angle-action
+   #:call-nav-pcontroller-action
+   #:call-ptu-action
+   #:call-torso-action
+   #:call-robosherlock-service
+   ;; joint-states
+   #:joint-states
+   #:joint-positions
+   #:get-arm-joint-states
+   #:normalize-joint-angles
+   ;; low-level-common
+   #:pr2-low-level-failure
+   #:actionlib-action-timed-out
+   #:values-converged
+   #:tf-frame-converged
+   #:ensure-pose-in-frame
+   #:ensure-point-in-frame
+   #:visualize-marker))
